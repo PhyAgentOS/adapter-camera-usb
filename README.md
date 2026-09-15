@@ -9,6 +9,10 @@
 - 构建：`cargo build --bins` 或 `cargo build --release --bins`。
 - 官方工具建议：使用发行版提供的 `v4l2-ctl --list-devices` 和 `v4l2-ctl --list-formats-ext -d /dev/videoN` 验证。
 
+## 二进制打包
+
+`.github/workflows/build-ubuntu20.yml` 在各自的原生 GitHub runner 上构建 x86_64 和 ARM64/aarch64，并统一使用 Ubuntu 20.04 容器保持 glibc 2.31 baseline。每次运行生成 `usb_camera-v<version>-ubuntu20.04-x86_64.tar.gz` 和 `usb_camera-v<version>-ubuntu20.04-arm64.tar.gz`，以及各自的 SHA-256 文件；完整发布步骤见 `RELEASING.md`。
+
 ## 安装与权限
 
 安装 Rust 1.97.1 或更高版本的 toolchain、Linux V4L2 开发依赖和 `v4l-utils`。
