@@ -6,22 +6,38 @@ on:
       ref:
         description: Git ref to build
         required: true
-        default: v1.0.6
+        default: v1.0.7
       version:
         description: USB camera version without the v prefix
         required: true
-        default: 1.0.6
+        default: 1.0.7
 
 permissions:
   contents: read
 
 jobs:
   build:
-    runs-on: ubuntu-latest
+    name: Build Ubuntu 20.04 (${{ matrix.asset_arch }})
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - runner: ubuntu-latest
+            target: x86_64-unknown-linux-gnu
+            asset_arch: x86_64
+            elf_machine: Advanced Micro Devices X86-64
+          - runner: ubuntu-24.04-arm
+            target: aarch64-unknown-linux-gnu
+            asset_arch: arm64
+            elf_machine: AArch64
+    runs-on: ${{ matrix.runner }}
     container:
       image: ubuntu:20.04
     env:
       RELEASE_VERSION: ${{ inputs.version }}
+      RUST_TARGET: ${{ matrix.target }}
+      ASSET_ARCH: ${{ matrix.asset_arch }}
+      ELF_MACHINE: ${{ matrix.elf_machine }}
     steps:
       - name: Install system tools
         run: |
@@ -47,6 +63,7 @@ jobs:
         uses: dtolnay/rust-toolchain@master
         with:
           toolchain: "1.97.1"
+          targets: ${{ matrix.target }}
 
       - name: Build release binary
         run: |
@@ -55,18 +72,22 @@ jobs:
             --remap-path-prefix=${GITHUB_WORKSPACE}=."
           export CARGO_PROFILE_RELEASE_STRIP=symbols
           cargo build --locked --release --bin usb_camera \
-            --target x86_64-unknown-linux-gnu
+            --target "${RUST_TARGET}"
 
       - name: Verify and package binary
         run: |
           test "${{ inputs.ref }}" = "v${RELEASE_VERSION}"
           mkdir -p dist
           install -m 0755 \
-            target/x86_64-unknown-linux-gnu/release/usb_camera \
+            "target/${RUST_TARGET}/release/usb_camera" \
             dist/usb_camera
           ./dist/usb_camera --version | tee /tmp/version.txt
           grep -q "${RELEASE_VERSION}" /tmp/version.txt
           file ./dist/usb_camera | grep -q 'ELF 64-bit LSB'
+          actual_machine="$(readelf -h ./dist/usb_camera |
+            sed -n 's/^[[:space:]]*Machine:[[:space:]]*//p')"
+          echo "ELF machine: ${actual_machine}"
+          test "${actual_machine}" = "${ELF_MACHINE}"
           test -z "$(ldd ./dist/usb_camera | grep 'not found' || true)"
           max_glibc="$(objdump -T ./dist/usb_camera |
             grep -oE 'GLIBC_[0-9.]+' | sort -Vu | tail -1)"
@@ -79,7 +100,7 @@ jobs:
             exit 1
           fi
           ldd --version | sed -n '1p'
-          archive="usb_camera-v${RELEASE_VERSION}-ubuntu20.04-x86_64.tar.gz"
+          archive="usb_camera-v${RELEASE_VERSION}-ubuntu20.04-${ASSET_ARCH}.tar.gz"
           tar \
             --sort=name \
             --mtime='UTC 1970-01-01' \
@@ -95,9 +116,9 @@ jobs:
 
       - uses: actions/upload-artifact@v6
         with:
-          name: usb_camera-v${{ inputs.version }}-ubuntu20.04-x86_64
+          name: usb_camera-v${{ inputs.version }}-ubuntu20.04-${{ matrix.asset_arch }}
           path: |
-            usb_camera-v${{ inputs.version }}-ubuntu20.04-x86_64.tar.gz
-            usb_camera-v${{ inputs.version }}-ubuntu20.04-x86_64.tar.gz.sha256
+            usb_camera-v${{ inputs.version }}-ubuntu20.04-${{ matrix.asset_arch }}.tar.gz
+            usb_camera-v${{ inputs.version }}-ubuntu20.04-${{ matrix.asset_arch }}.tar.gz.sha256
           if-no-files-found: error
           retention-days: 30

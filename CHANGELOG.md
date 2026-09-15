@@ -6,6 +6,16 @@ The project follows Semantic Versioning. Dates use the `YYYY-MM-DD` format.
 
 ## Unreleased
 
+## 1.0.7 - 2026-09-15
+
+### Added
+
+- Added native ARM64/aarch64 Ubuntu 20.04 GitHub binary release artifacts alongside the existing x86_64 artifacts.
+
+### Fixed
+
+- Updated the locked `h2` dependency to 0.4.19 to address `RUSTSEC-2026-0258`.
+
 ### Removed
 
 - Removed the optional security-policy and code-of-conduct files to align the public documentation set across adapters.

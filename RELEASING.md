@@ -34,7 +34,7 @@ Do not store crates.io or repository tokens in this repository. Published crates
 
 ## Binary release
 
-Build the user-facing Linux x86_64 binary as a static PIE linked against musl. Install `musl-tools`, add the Rust target, and build with path remapping and symbol stripping:
+The existing portable x86_64 release path builds the user-facing binary as a static PIE linked against musl. Install `musl-tools`, add the Rust target, and build with path remapping and symbol stripping:
 
 ```bash
 rustup target add --toolchain 1.97.1 x86_64-unknown-linux-musl
@@ -44,10 +44,22 @@ cargo +1.97.1 build --locked --release --bin usb_camera \
   --target x86_64-unknown-linux-musl
 ```
 
-Verify that `file` reports `static-pie linked`, `ldd` reports `statically linked`, and `readelf -l` does not report an `INTERP` segment.
+Verify that `file` reports `static-pie linked`, `ldd` reports `statically linked`, and `readelf -l` does not report an `INTERP` segment. The minimal archive is named `usb_camera-v<version>-linux-x86_64-musl.tar.gz` and contains only the stripped `usb_camera` executable.
 
-Do not reuse files from the local `dist/` directory. The `usb_camera_test_sink` binary is a development and Dora example utility and must not be included in public binary archives.
+### Ubuntu 20.04 x86_64 and ARM64 artifacts
 
-The minimal public binary archive is named `usb_camera-v<version>-linux-x86_64-musl.tar.gz` and contains only the stripped `usb_camera` executable. Project documentation and licensing remain available in the repository and GitHub-generated source archives.
+Trigger the **Build Ubuntu 20.04 binary** workflow (`.github/workflows/build-ubuntu20.yml`) manually through GitHub Actions with these inputs:
 
-Scan the final binary for private paths and internal URLs, verify its SHA-256 digest before upload, and test the archive on the oldest supported runtime environment before publishing it.
+- `ref`: the immutable release tag to check out, exactly `v<version>`.
+- `version`: the package version without the `v` prefix. It must match `ref` and the version embedded in the binary.
+
+A single workflow run builds both architectures with Rust 1.97.1. The matrix uses the native `ubuntu-latest` runner with target `x86_64-unknown-linux-gnu` and the native `ubuntu-24.04-arm` runner with target `aarch64-unknown-linux-gnu`. Both run inside matching-architecture Ubuntu 20.04 containers, producing dynamically linked GNU/glibc binaries whose maximum required glibc symbol version must not exceed 2.31.
+
+For each architecture, the workflow verifies the embedded version, 64-bit ELF format, expected `readelf` machine, dynamic-library resolution, GLIBC symbol ceiling, private build markers, archive contents, and SHA-256 checksum. It uploads these architecture-specific Actions artifacts for 30 days:
+
+- `usb_camera-v<version>-ubuntu20.04-x86_64.tar.gz`
+- `usb_camera-v<version>-ubuntu20.04-arm64.tar.gz`
+
+Each archive has a matching `.tar.gz.sha256` file and contains only the stripped `usb_camera` executable. The `usb_camera_test_sink` development utility must not be included. Do not reuse files from the local `dist/` directory.
+
+Before publishing either workflow artifact, download it and test it on a separate, clean Ubuntu 20.04 runtime of the matching architecture. Validate x86_64 on clean x86_64 and arm64 on clean ARM64/aarch64. Scan final binaries for private paths and internal URLs, verify their SHA-256 digests, and do not replace published assets with differing files.
