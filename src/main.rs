@@ -859,8 +859,10 @@ mod tests {
             .expect_err("--version should exit after displaying the version");
 
         assert_eq!(error.kind(), ErrorKind::DisplayVersion);
-        assert_eq!(error.to_string(), "usb_camera 2.1.1\n");
-        assert_eq!(env!("CARGO_PKG_VERSION"), "2.1.1");
+        assert_eq!(
+            error.to_string(),
+            format!("usb_camera {}\n", env!("CARGO_PKG_VERSION"))
+        );
     }
 
     #[test]
