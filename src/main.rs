@@ -1,7 +1,9 @@
+#[cfg_attr(not(target_os = "linux"), allow(dead_code))]
 mod backend;
 #[cfg(target_os = "linux")]
 mod backend_v4l;
 mod config;
+#[cfg_attr(not(target_os = "linux"), allow(dead_code))]
 mod list_devices;
 mod observability;
 
@@ -9,6 +11,7 @@ use std::fs;
 use std::io::Write;
 #[cfg(target_os = "linux")]
 use std::os::unix::fs::MetadataExt;
+#[cfg(target_os = "linux")]
 use std::path::PathBuf;
 use std::time::Duration;
 
@@ -188,6 +191,7 @@ struct VideoDevicePermission {
 fn inspect_environment() -> EnvironmentCheck {
     let supported = cfg!(target_os = "linux");
     let mut notes = Vec::new();
+    #[cfg_attr(not(target_os = "linux"), allow(unused_mut))]
     let mut video_devices = Vec::new();
 
     if !supported {
@@ -394,7 +398,9 @@ fn load_snapshot_config(config_path: Option<&str>, device: Option<&str>) -> Resu
             Ok(config)
         }
         (None, Some(device)) => CameraConfig::for_snapshot(device.to_string()),
-        (None, None) => eyre::bail!("snapshot requires --config <path.yaml> or --device <device>"),
+        (None, None) => Err(eyre::eyre!(
+            "snapshot requires --config <path.yaml> or --device <device>"
+        )),
     }
 }
 
@@ -453,7 +459,7 @@ fn run_snapshot(config_path: Option<&str>, device: Option<&str>, output_path: &s
             }
         }
     }
-    eyre::bail!("snapshot: 重试用尽")
+    Err(eyre::eyre!("snapshot: 重试用尽"))
 }
 
 fn main() -> Result<()> {
@@ -599,7 +605,9 @@ fn normalize_mjpeg_payload(data: Bytes) -> Result<Bytes> {
         return Ok(data.slice(..payload_len));
     }
 
-    eyre::bail!("MJPEG 直通校验失败：缺少有效 JPEG EOI，帧可能已被截断")
+    Err(eyre::eyre!(
+        "MJPEG 直通校验失败：缺少有效 JPEG EOI，帧可能已被截断"
+    ))
 }
 
 fn image_from_captured_frame(frame: CapturedFrame, config: &CameraConfig) -> Result<RecordBatch> {
@@ -851,8 +859,10 @@ mod tests {
             .expect_err("--version should exit after displaying the version");
 
         assert_eq!(error.kind(), ErrorKind::DisplayVersion);
-        assert_eq!(error.to_string(), "usb_camera 2.1.1\n");
-        assert_eq!(env!("CARGO_PKG_VERSION"), "2.1.1");
+        assert_eq!(
+            error.to_string(),
+            format!("usb_camera {}\n", env!("CARGO_PKG_VERSION"))
+        );
     }
 
     #[test]

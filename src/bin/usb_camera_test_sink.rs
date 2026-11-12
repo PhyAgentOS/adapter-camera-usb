@@ -1,5 +1,5 @@
 use std::path::PathBuf;
-use std::time::{SystemTime, UNIX_EPOCH};
+use std::time::{Duration, SystemTime, UNIX_EPOCH};
 
 use arrow_array::{RecordBatch, StructArray};
 use clap::Parser;
@@ -9,7 +9,7 @@ use forge_msgs::{CompressedImage, Image};
 use serde::Deserialize;
 
 #[derive(Debug, Parser)]
-#[command(about = "Decode and report USB camera Dora messages")]
+#[command(version, about = "Decode and validate every USB camera Dora message")]
 struct Cli {
     #[arg(long)]
     config: PathBuf,
@@ -21,6 +21,10 @@ struct SinkConfig {
     input_id: String,
     #[serde(default = "default_log_every")]
     log_every: u64,
+    #[serde(default = "default_min_frames")]
+    min_frames: u64,
+    #[serde(default)]
+    delay_ms: u64,
 }
 
 fn default_input_id() -> String {
@@ -29,6 +33,20 @@ fn default_input_id() -> String {
 
 fn default_log_every() -> u64 {
     30
+}
+
+fn default_min_frames() -> u64 {
+    1
+}
+
+fn require_frames(count: u64, minimum: u64) -> Result<()> {
+    if minimum == 0 {
+        eyre::bail!("min_frames must be positive");
+    }
+    if count < minimum {
+        eyre::bail!("received {count} valid images; required at least {minimum}");
+    }
+    Ok(())
 }
 
 fn receive_time_ms() -> u128 {
@@ -87,18 +105,15 @@ fn main() -> Result<()> {
     while let Some(event) = events.recv() {
         match event {
             Event::Input { id, data, .. } if id.as_str() == config.input_id.as_str() => {
+                let description = decode_and_describe(&data)
+                    .wrap_err_with(|| format!("invalid image on {}", config.input_id))?;
                 count += 1;
-                if !should_log(count, config.log_every) {
-                    continue;
+                if should_log(count, config.log_every) {
+                    let received_at_ms = receive_time_ms();
+                    println!("count={count} received_at_unix_ms={received_at_ms} {description}");
                 }
-                let received_at_ms = receive_time_ms();
-                match decode_and_describe(&data) {
-                    Ok(description) => {
-                        println!("count={count} received_at_unix_ms={received_at_ms} {description}")
-                    }
-                    Err(err) => eprintln!(
-                        "count={count} received_at_unix_ms={received_at_ms} decode_error={err}"
-                    ),
+                if config.delay_ms > 0 {
+                    std::thread::sleep(Duration::from_millis(config.delay_ms));
                 }
             }
             Event::Stop(_) => break,
@@ -106,5 +121,37 @@ fn main() -> Result<()> {
             _ => {}
         }
     }
-    Ok(())
+    require_frames(count, config.min_frames)
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use bytes::Bytes;
+    use dora_node_api::IntoArrow;
+
+    #[test]
+    fn no_frames_is_not_a_successful_stream_test() {
+        assert!(require_frames(0, 0).is_err());
+        assert!(require_frames(0, 1).is_err());
+        assert!(require_frames(1, 1).is_ok());
+    }
+
+    #[test]
+    fn raw_and_depth_images_are_validated() {
+        for (encoding, step, bytes) in [
+            ("rgb8", 3, vec![1, 2, 3]),
+            ("32FC1", 4, 1.25_f32.to_le_bytes().to_vec()),
+        ] {
+            let image = Image::new(1, 1, encoding, step, Bytes::from(bytes)).unwrap();
+            let array: StructArray = image.to_record_batch().unwrap().into();
+            assert!(decode_and_describe(&array.into_arrow()).is_ok());
+        }
+    }
+
+    #[test]
+    fn malformed_input_is_rejected() {
+        let array = arrow_array::UInt8Array::from(vec![1_u8, 2, 3]);
+        assert!(decode_and_describe(&array.into_arrow()).is_err());
+    }
 }

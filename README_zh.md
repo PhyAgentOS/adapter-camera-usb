@@ -1,0 +1,202 @@
+[English](README.md) | 中文
+
+# USB Camera
+
+## BREAKING CHANGE：Forge 2.x / Dora 1.x 迁移
+
+本次从 Forge 1.x / Dora 0.4.x 升级需要协同部署。节点对接前必须对齐 Forge 包、Dora CLI/coordinator/daemon、本节点及上下游节点的版本；不支持在 Forge 1.x 部署中只替换单个节点。可执行产物也需要使用匹配环境重新构建和部署。仍使用旧技术栈的部署请保留在 `stable/1.x`。
+
+本轮验证的 Python 基线为 `forge-msgs==2.1.0`、`Pillow==13.0.0`、`forge-common==2.1.0`、按需使用的 `forge-robot` / `forge-policy` / `forge-kinematics` / `forge-tool` 为 `2.0.0`，以及 `dora-rs==1.0.1`。同时遵守本仓库的 Python 和 SDK 平台要求。Forge 各包族独立发布，无需强行使用同一个版本号。Rust 节点继续使用已发布的 `forge_msgs` crate `2.0.0` 和 Dora `1.0.1`；Python Msgs `2.1.0` 不要求升级到尚未发布的 Rust `2.1.0`。消息命名空间 `forge_msgs.v1` 保持不变。
+
+这里的 breaking change 指旧技术栈的部署迁移，不代表真机、真实模型或长时间运行已完成验收。实际测试和未完成项见[本轮验证报告](migration/msgs-2.1.0-report.json)。
+
+纯 Rust 的 Linux USB/UVC 彩色相机接入，保留独立的配置模型、采集 backend、CLI 和 Dora 节点。支持 V4L2 `/dev/video*`，不引入 Python。不同设备、固件和驱动组合仍需分别验证。
+
+## 支持范围
+
+- 传感器类型：通用 RGB USB/UVC 相机。
+- 连接方式：Linux V4L2 视频设备。
+- 构建：`cargo build --bins` 或 `cargo build --release --bins`。
+- 官方工具建议：使用发行版提供的 `v4l2-ctl --list-devices` 和 `v4l2-ctl --list-formats-ext -d /dev/videoN` 验证。
+
+## 二进制打包
+
+`.github/workflows/build-ubuntu20.yml` 在各自的原生 GitHub runner 上构建 x86_64 和 ARM64/aarch64，并统一使用 Ubuntu 20.04 容器保持 glibc 2.31 baseline。每次运行生成 `usb_camera-v<version>-ubuntu20.04-x86_64.tar.gz` 和 `usb_camera-v<version>-ubuntu20.04-arm64.tar.gz`，以及各自的 SHA-256 文件；完整发布步骤见 `RELEASING.md`。
+
+## 安装与权限
+
+安装 Rust 1.97.1 或更高版本的 toolchain、Linux V4L2 开发依赖和 `v4l-utils`。
+Ubuntu/Debian 可执行：
+
+```bash
+sudo apt install build-essential clang libclang-dev libv4l-dev v4l-utils
+```
+
+其他发行版的软件包名需由部署环境确认。
+
+先执行不会打开设备的环境检查：
+
+```bash
+cargo run --bin usb_camera -- check-environment
+cargo run --bin usb_camera -- check-environment --json
+```
+
+该命令只读取 OS、`/dev/video*` 目录项和权限元数据，不调用设备 `open`/V4L2 ioctl。当前用户不属于 `video` 组时：
+
+```bash
+sudo scripts/install_permissions.sh
+```
+
+重新登录后再次自检。脚本只把调用用户加入 `video` 组，不写入或覆盖系统 udev
+规则，也不会安装厂商 SDK。
+
+## 配置
+
+唯一交付示例为 `config/sensor.example.yaml`：
+
+```bash
+cargo run --bin usb_camera -- run --config config/sensor.example.yaml
+```
+
+也可设置 `USB_CAMERA_NODE_CONFIG`。字段如下：
+
+- `device`：设备路径或数字索引；示例 `/dev/video0`。
+- `output_id`：Dora output id，必须与 dataflow `outputs` 对齐。
+- `image_format`：`raw`、`jpeg`、`png`。
+- `image_jpeg_quality`：JPEG 质量 `1..=100`。
+- `width`/`height`：期望尺寸；驱动可能协商为其他实际值。
+- `fps`：期望设备帧率，必须至少为 1；Dora 输出节奏仍由 `tick` 决定。
+
+配置修改后需要重启节点/采集会话；当前不支持运行中动态调参。
+
+## 发现与单帧采集
+
+设备发现会查询 V4L2 能力：
+
+```bash
+cargo run --bin usb_camera -- list-devices
+cargo run --bin usb_camera -- list-devices --json
+```
+
+发现逻辑会排除 metadata 以及声明 GREY/Y10/Y16/Z16 等格式的深度、红外节点；
+对于暴露多个 `/dev/video*` 的深度相机，仅返回可作为 RGB 彩色输入的节点。
+
+采集 JPEG 单帧：
+
+```bash
+cargo run --bin usb_camera -- snapshot \
+  --config config/sensor.example.yaml \
+  --output sample_output/snapshot.jpg
+```
+
+对应说明见 `examples/device_discovery/` 与 `examples/capture_sample/`。snapshot 会丢弃预热帧、跳过疑似黑帧并对间歇错误做有限重试，因此会实际打开硬件。
+
+## Dora example
+
+`examples/dora_sensor_stream/` 提供完整 `sensor -> sink` 链路。先构建二进制，再进入该目录运行：
+
+```bash
+cargo build --bins
+cd examples/dora_sensor_stream
+dora run dataflow.yaml
+```
+
+该示例的 `dataflow.yaml` 固定引用 `target/debug/`，因此必须使用不带 `--release`
+的构建命令。若部署 release 产物，需将两个节点路径改为 `target/release/`。
+
+sink 是 Rust 可执行节点，能解码 `forge_msgs.Image` 和 `forge_msgs.CompressedImage`，打印帧计数、编码、尺寸、数据字节数及 sink 接收时的 Unix 毫秒时间。
+
+## 消息与时间戳语义
+
+- `image_format: raw`：输出 `forge_msgs.Image`，当前编码为 `rgb8`，布局为 HWC、行连续。
+- `image_format: jpeg`：输出 `forge_msgs.CompressedImage(format="jpeg")`；有效 MJPEG 可校验后直通。
+- `image_format: png`：输出 `forge_msgs.CompressedImage(format="png")`；使用吞吐优先的快速、无滤波编码，文件可能接近 raw 大小。
+- JPEG 优先向设备请求 MJPG；raw/PNG 优先请求 YUYV，实际格式仍以驱动协商结果为准。
+- YUYV 转换使用驱动协商出的行步长、量化范围和色彩空间；启动日志会记录最终协商结果。
+- 消息本体没有独立采集时间戳字段；节点会尽力附加用户 metadata
+  `capture_timestamp_ns`。它是 V4L2 后端取得物理帧时记录的 Unix epoch 纳秒时间，
+  是采集时刻的最佳估计；缓存帧重复返回时不会重新生成，也不替代 Dora 管理的消息时间戳。
+- 节点继续传递触发该帧的 Dora `tick` user metadata parameters，但相机产生的
+  `capture_timestamp_ns` 是同名字段的权威值；没有有效帧时间时不会继承 tick 中的同名值。
+- test sink 的 `received_at_unix_ms` 是 sink 进程收到并处理消息时的系统墙钟时间，也不是硬件采集时间。
+
+## 可选发布可观测性
+
+仅当节点启动时环境变量 **`FORGE_OBSERVABILITY=1`** 才启用；未设置、`0`、`true`
+或其他值均关闭。默认保持原有发送和 metadata 行为，不采样可观测性时钟。
+
+启用时，每次 image payload 完整构建后、调用 Dora `send_output` 前，节点通过
+`forge_common::observability` 准备 `NewOrigin`，发送一次，再用同一发送结果完成观测。
+发送失败仍只告警、不重试、不计为成功。相机不继承 tick 的观测上下文：先移除 tick 的
+`forge_obs_version`、`forge_publish_time_ns`、`forge_origin_time_ns`、`forge_origin_id`
+（包括未知版本），然后写入整数版本 `1` 和同次采样的 Unix 纳秒 publish/origin 时间。
+当前不生成 origin ID；时钟不可用时清除这些字段但仍发送图像。
+
+`capture_timestamp_ns` 和其他业务 metadata 保留原有语义。采集时间不是发布 origin；
+即使重复发送缓存帧，也会生成新的发布时间而保留该帧的采集时间。Dora 自带时间戳和
+Arrow 图像 payload/schema 均不变。当前只附加发布 metadata，不启用本地指标导出或后台线程；
+示例 sink 仍只解码图像，不验证观测 metadata。
+
+USB Camera 2.1.0 的观测 API 使用已发布到 crates.io 的 `forgelab_common`，最低版本为 `2.1.0`
+（代码中别名为 `forge_common`），无需本地源码或依赖补丁。运行时关闭观测也使用同一依赖。
+在本仓库目录使用提交的 `Cargo.lock` 构建和检查：
+
+```bash
+cargo test --locked
+cargo clippy --all-targets --locked -- -D warnings
+cargo build --locked --bins
+```
+
+构建后，在 `examples/dora_sensor_stream/` 中执行以下命令会**实际打开相机**：
+
+```bash
+FORGE_OBSERVABILITY=1 dora run dataflow.yaml
+```
+
+确保运行器将此环境变量传给 sensor 进程；也可在 dataflow 的 sensor 节点上设置
+`env: { FORGE_OBSERVABILITY: "1" }`。不设置该变量即可保持默认行为。
+
+## 验证与交付文档
+
+
+- 样本策略：`sample_output/README.md`
+- 资产策略：`assets/README.md`
+- 无硬件测试：`cargo test`
+
+## 常见问题与限制
+
+- 仅实现 Linux V4L2 backend；其他系统的环境检查会报告不支持。
+- `Permission denied`：确认设备节点 group/mode、用户属于 `video` 组且已重新登录。
+- `Device or resource busy`：关闭浏览器、VLC 或其他相机进程。
+- 找不到设备：检查 USB、内核日志和 `/dev/video*`；再用官方工具确认。
+- 分辨率/帧率不符：配置是期望值，最终由设备驱动协商；以启动日志记录的实际结果为准。
+- 底部偶发闪烁色块：常见原因是 UVC/USB 等时传输丢包。backend 会丢弃驱动标记为损坏的帧，并输出 `dropping corrupted frame` 告警；若告警持续出现，请检查 USB 线材、Hub、接口带宽，并尝试降低分辨率或帧率。
+- 掉帧诊断：`sequence gap` 表示驱动帧序号跳变，`frame timeout` 表示连续 2 秒未取得帧，`long frame interval` 表示采集发生异常停顿。告警包含累计次数并已限频；单槽 latest-frame 队列为降低延迟而覆盖旧帧属于预期行为，不作为硬件掉帧告警。
+- MJPEG 必须包含起始 SOI 和 EOI；EOI 后的 UVC/驱动尾数据会被裁掉。真正缺少 EOI 的帧会在进入缓存前丢弃，避免把明显截断的帧显示成底部色块。节点不会自动补 EOI，因为缺失的图像数据无法通过补结束标记恢复。
+- `buffer near capacity` 仅用于可变长度 MJPEG，表示 `bytesused` 接近驱动协商的 `sizeimage`/mmap 容量；若同时缺少 EOI，说明不完整帧恰好顶满单帧 buffer，但仍应结合驱动和 USB 日志判断根因。
+- 启动日志记录请求/实际帧率和 `sizeimage`，首个有效 buffer 记录 mmap 容量；运行期间每 10 秒的 `camera_health` 汇总包含 accepted、invalid、last-good age、尾数据类型、最大 buffer 占用率及各类异常累计值。实际帧率偏差超过 5% 会告警，过高帧率可能增加 USB/CPU 压力。
+- 同一设备通常不能被多个进程同时采集。
+- 当前真机 640×480 下，完整 Dora sink 链路中 JPEG、raw 和快速 PNG 均约
+  30 FPS；快速 PNG 单帧约 922 KB，实时传输通常仍应优先使用 JPEG。
+- raw/jpeg/png、60 秒连续运行及异常退出重开已验证；拔插恢复、数分钟以上稳定性和
+  丢帧统计仍待人工验收。
+
+## 贡献与权限
+
+- 开发环境、检查命令和硬件变更要求见 `CONTRIBUTING.md`。
+- 加入 `video` 组会授予当前用户访问摄像头等视频设备的能力；只应向受信任用户授予该权限。
+
+## 许可证
+
+本项目基于 Apache License 2.0 开源，完整条款见 `LICENSE`。
+
+
+## Forge 2 / Dora 1 迁移
+
+目标版本：`2.1.2`，当前为待验收改动。首轮验证组合使用 Dora 1.0.1、Rust Msgs 2.0.0 / Python Msgs 2.1.0、Common 2.1.0；依赖与构建工具以提交的锁文件为准。原有消息规范继续使用 `forge_msgs.v1`。
+
+本轮要求：检查所有示例最终 YAML，使用 `dora validate <dataflow.yaml>` 验证，并实际执行消息往返。相机取流、资源释放和异常退出须分别验收；高吞吐图像链预热后连续测试至少 4 小时，覆盖慢消费者、扇出、退出与重启，记录实际内存占用。无硬件单测不能替代设备验收。
+
+最终发布归档须先在声明支持的平台完成验收，记录源码与归档、可执行文件校验值；通过后发布同一份包，重建后重新验收。Linux 发布包仍需 Linux 验证，其他平台的开发测试不代表其已通过。
+
+`usb_camera_test_sink` 对每帧校验，支持正数 `min_frames` 和 `delay_ms`，用于严格接收与慢消费者测试。最小帧数不能设为零来放过空流。
