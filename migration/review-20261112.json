@@ -1,0 +1,287 @@
+{
+  "review_date": "2026-11-12",
+  "merge_recommendation": "hold",
+  "full_acceptance_complete": false,
+  "gitlab_sync": "not started; acceptance pending",
+  "repository": "adapter-camera-usb",
+  "changes": [
+    "Reject min_frames=0 in the Rust stream sink; keep English/Chinese guidance aligned."
+  ],
+  "software_tests": {
+    "cargo_test": "27 passed (20 main, 3 sink, 4 contracts)",
+    "clippy": "passed: all targets/all features, warnings denied",
+    "format": "passed"
+  },
+  "runtime_records": [
+    {
+      "entry": "usb-camera",
+      "mode": "single",
+      "command": [
+        "${WORKSPACE}/.test-env/bin/dora",
+        "run",
+        "${WORKSPACE}/validation/review-20261112/single/usb-camera/dataflow.yaml",
+        "--stop-after",
+        "4s"
+      ],
+      "exit_code": 1,
+      "elapsed_seconds": 1.903,
+      "passed": false,
+      "expected_negative_confirmed": true,
+      "scope": "Negative platform check: native Linux V4L2 capture is unavailable on macOS; not hardware acceptance.",
+      "log_file": "${WORKSPACE}/validation/review-20261112/single/usb-camera/dora.log"
+    },
+    {
+      "entry": "usb-sink-empty",
+      "mode": "single",
+      "command": [
+        "${WORKSPACE}/.test-env/bin/dora",
+        "run",
+        "${WORKSPACE}/validation/review-20261112/single/usb-sink-empty/dataflow.yaml",
+        "--stop-after",
+        "4s"
+      ],
+      "exit_code": 1,
+      "elapsed_seconds": 4.043,
+      "passed": false,
+      "expected_negative_confirmed": true,
+      "scope": "Negative empty-stream check: min_frames=0 must fail, not an accepted image stream.",
+      "log_file": "${WORKSPACE}/validation/review-20261112/single/usb-sink-empty/dora.log"
+    },
+    {
+      "entry": "usb-camera",
+      "mode": "chain",
+      "command": [
+        "${WORKSPACE}/.test-env/bin/dora",
+        "run",
+        "${WORKSPACE}/validation/review-20261112/blocked-chain/usb-camera/dataflow.yaml",
+        "--stop-after",
+        "4s"
+      ],
+      "includes_gateway": true,
+      "exit_code": 1,
+      "elapsed_seconds": 4.242,
+      "passed": false,
+      "scope": "Blocked platform/SDK prerequisite diagnostic; not successful transport or hardware acceptance.",
+      "log_file": "${WORKSPACE}/validation/review-20261112/blocked-chain/usb-camera/dora.log"
+    },
+    {
+      "command": [
+        "${WORKSPACE}/.test-env/bin/dora",
+        "run",
+        "${WORKSPACE}/validation/review-20261112/viewer-usb-gateway-bounded/dataflow.yaml",
+        "--stop-after",
+        "10s"
+      ],
+      "includes_gateway": true,
+      "passed": true,
+      "viewer_included": true,
+      "rust_sinks_included": true,
+      "gateway_images": {
+        "image/rgb": {
+          "shape": [
+            480,
+            640,
+            3
+          ],
+          "format": "jpeg"
+        },
+        "image/depth": {
+          "shape": [
+            480,
+            640
+          ],
+          "format": "jpeg"
+        }
+      },
+      "exit_code": 0,
+      "checker": {
+        "passed": true,
+        "counts": {
+          "rgb": 215,
+          "depth": 210
+        },
+        "elapsed_seconds": 9.020368000026792,
+        "max_fixture_latency_ms": 550.413,
+        "error": null
+      },
+      "report_file": "${WORKSPACE}/validation/review-20261112/viewer-usb-gateway-bounded/chain-report.json",
+      "log_file": "${WORKSPACE}/validation/review-20261112/viewer-usb-gateway-bounded/dora.log",
+      "log_transport_failures": [
+        "2026-11-12T02:03:29.896195Z  WARN dora_daemon::node_communication: failed to send NextEvent reply",
+        "   2: outgoing message size 90462638 exceeds maximum 67108864"
+      ],
+      "accepted_smoke": false,
+      "scope": "Generated RGB/depth short software run; no camera capture, Linux artifact or sustained-run acceptance."
+    },
+    {
+      "command": [
+        "${WORKSPACE}/.test-env/bin/dora",
+        "run",
+        "${WORKSPACE}/validation/review-20261112/viewer-usb-gateway-chain/dataflow.yaml",
+        "--stop-after",
+        "10s"
+      ],
+      "includes_gateway": true,
+      "passed": false,
+      "viewer_included": true,
+      "rust_sinks_included": true,
+      "error": "Gateway did not become healthy; inspect dora.log",
+      "report_file": "${WORKSPACE}/validation/review-20261112/viewer-usb-gateway-chain/chain-report.json",
+      "log_file": "${WORKSPACE}/validation/review-20261112/viewer-usb-gateway-chain/dora.log",
+      "log_transport_failures": [
+        "10:01:51 stdout adapter-forge-gateway: 2026-11-12 10:01:51 - forge_gateway.cli - ERROR - gateway requires joint_order or an enabled Tool Gateway",
+        "2026-11-12T02:01:51.421651Z ERROR node_failure: dora_daemon::spawn::prepared: node exited with error: ExitCode(1) node_id=adapter-forge-gateway dataflow_id=01a1cd7d-6b32-78e4-8fcd-d9e4a9ef2744",
+        "10:01:51 ERROR  adapter-forge-gateway: daemon exited with code 1",
+        "2026-11-12T02:01:53.000924Z ERROR node_failure: dora_daemon::spawn::prepared: node exited with error: ExitCode(1) node_id=rust-depth dataflow_id=01a1cd7d-6b32-78e4-8fcd-d9e4a9ef2744",
+        "10:01:53 ERROR  rust-depth: daemon exited with code 1. This error occurred because node `adapter-forge-gateway` exited before connecting to dora."
+      ],
+      "accepted_smoke": false,
+      "scope": "Generated RGB/depth short software run; no camera capture, Linux artifact or sustained-run acceptance."
+    },
+    {
+      "command": [
+        "${WORKSPACE}/.test-env/bin/dora",
+        "run",
+        "${WORKSPACE}/validation/review-20261112/viewer-usb-gateway-chain-final/dataflow.yaml",
+        "--stop-after",
+        "10s"
+      ],
+      "includes_gateway": true,
+      "passed": true,
+      "viewer_included": true,
+      "rust_sinks_included": true,
+      "gateway_images": {
+        "image/rgb": {
+          "shape": [
+            480,
+            640,
+            3
+          ],
+          "format": "jpeg"
+        },
+        "image/depth": {
+          "shape": [
+            480,
+            640
+          ],
+          "format": "jpeg"
+        }
+      },
+      "exit_code": 0,
+      "checker": {
+        "passed": true,
+        "counts": {
+          "rgb": 241,
+          "depth": 238
+        },
+        "elapsed_seconds": 9.78292604116723,
+        "max_fixture_latency_ms": 356.402,
+        "error": null
+      },
+      "report_file": "${WORKSPACE}/validation/review-20261112/viewer-usb-gateway-chain-final/chain-report.json",
+      "log_file": "${WORKSPACE}/validation/review-20261112/viewer-usb-gateway-chain-final/dora.log",
+      "log_transport_failures": [
+        "2026-11-12T02:02:44.756021Z  WARN dora_daemon::node_communication: failed to send NextEvent reply",
+        "   2: outgoing message size 105544522 exceeds maximum 67108864"
+      ],
+      "accepted_smoke": false,
+      "scope": "Generated RGB/depth short software run; no camera capture, Linux artifact or sustained-run acceptance."
+    },
+    {
+      "command": [
+        "${WORKSPACE}/.test-env/bin/dora",
+        "run",
+        "${WORKSPACE}/validation/review-20261112/viewer-usb-gateway-strict-final/dataflow.yaml",
+        "--stop-after",
+        "10s"
+      ],
+      "includes_gateway": true,
+      "passed": true,
+      "viewer_included": true,
+      "rust_sinks_included": true,
+      "gateway_images": {
+        "image/rgb": {
+          "shape": [
+            480,
+            640,
+            3
+          ],
+          "format": "jpeg"
+        },
+        "image/depth": {
+          "shape": [
+            480,
+            640
+          ],
+          "format": "jpeg"
+        }
+      },
+      "exit_code": 0,
+      "checker": {
+        "passed": true,
+        "counts": {
+          "rgb": 284,
+          "depth": 283
+        },
+        "elapsed_seconds": 9.758289957884699,
+        "max_fixture_latency_ms": 30.48,
+        "error": null
+      },
+      "report_file": "${WORKSPACE}/validation/review-20261112/viewer-usb-gateway-strict-final/chain-report.json",
+      "log_file": "${WORKSPACE}/validation/review-20261112/viewer-usb-gateway-strict-final/dora.log",
+      "log_transport_failures": [],
+      "accepted_smoke": true,
+      "scope": "Generated RGB/depth short software run; no camera capture, Linux artifact or sustained-run acceptance."
+    },
+    {
+      "command": [
+        "${WORKSPACE}/.test-env/bin/dora",
+        "run",
+        "${WORKSPACE}/validation/review-20261112/viewer-usb-gateway-verified/dataflow.yaml",
+        "--stop-after",
+        "10s"
+      ],
+      "includes_gateway": true,
+      "passed": true,
+      "viewer_included": true,
+      "rust_sinks_included": true,
+      "gateway_images": {
+        "image/rgb": {
+          "shape": [
+            480,
+            640,
+            3
+          ],
+          "format": "jpeg"
+        },
+        "image/depth": {
+          "shape": [
+            480,
+            640
+          ],
+          "format": "jpeg"
+        }
+      },
+      "exit_code": 0,
+      "checker": {
+        "passed": true,
+        "counts": {
+          "rgb": 284,
+          "depth": 283
+        },
+        "elapsed_seconds": 9.780401125084609,
+        "max_fixture_latency_ms": 52.973,
+        "error": null
+      },
+      "report_file": "${WORKSPACE}/validation/review-20261112/viewer-usb-gateway-verified/chain-report.json",
+      "log_file": "${WORKSPACE}/validation/review-20261112/viewer-usb-gateway-verified/dora.log",
+      "log_transport_failures": [],
+      "accepted_smoke": true,
+      "scope": "Generated RGB/depth short software run; no camera capture, Linux artifact or sustained-run acceptance."
+    }
+  ],
+  "blockers": [
+    "Intermittent Dora 1.0.1 64 MiB transport reply failure observed in 640x480 multi-consumer image runs, even with zero process exit. Later clean runs do not resolve it.",
+    "Native Linux V4L2 capture is unavailable on this macOS host; generated images only validate receiver paths."
+  ]
+}

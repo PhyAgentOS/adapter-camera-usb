@@ -10,7 +10,7 @@ Target node version: **2.1.2**. These changes are candidates pending the platfor
 hardware and sustained-stream acceptance gates below. A version declaration does not
 mean a stable release has been accepted.
 
-usb_camera_test_sink validates every frame, fails on malformed or insufficient input, and supports min_frames and delay_ms for slow-consumer tests.
+usb_camera_test_sink validates every frame, fails on malformed or insufficient input, and supports positive min_frames and delay_ms for slow-consumer tests. A zero minimum cannot pass an empty stream.
 
 ## Runtime and platform
 

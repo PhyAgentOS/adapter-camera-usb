@@ -191,4 +191,4 @@ FORGE_OBSERVABILITY=1 dora run dataflow.yaml
 
 最终发布归档须先在声明支持的平台完成验收，记录源码与归档、可执行文件校验值；通过后发布同一份包，重建后重新验收。Linux 发布包仍需 Linux 验证，其他平台的开发测试不代表其已通过。
 
-`usb_camera_test_sink` 对每帧校验，支持 `min_frames` 和 `delay_ms`，用于严格接收与慢消费者测试。
+`usb_camera_test_sink` 对每帧校验，支持正数 `min_frames` 和 `delay_ms`，用于严格接收与慢消费者测试。最小帧数不能设为零来放过空流。

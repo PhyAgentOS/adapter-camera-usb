@@ -40,6 +40,9 @@ fn default_min_frames() -> u64 {
 }
 
 fn require_frames(count: u64, minimum: u64) -> Result<()> {
+    if minimum == 0 {
+        eyre::bail!("min_frames must be positive");
+    }
     if count < minimum {
         eyre::bail!("received {count} valid images; required at least {minimum}");
     }
@@ -129,6 +132,7 @@ mod tests {
 
     #[test]
     fn no_frames_is_not_a_successful_stream_test() {
+        assert!(require_frames(0, 0).is_err());
         assert!(require_frames(0, 1).is_err());
         assert!(require_frames(1, 1).is_ok());
     }
