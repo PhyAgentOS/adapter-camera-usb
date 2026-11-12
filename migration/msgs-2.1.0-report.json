@@ -1,0 +1,141 @@
+{
+  "repository": "adapter-camera-usb",
+  "round": "msgs-2.1.0 alignment / 2026-11-12",
+  "breaking_change": "Forge 1.x / Dora 0.4.x to Forge 2.x / Dora 1.x requires aligned Forge packages, runtime services, node peers and rebuilt artifacts. Forge families version independently. forge_msgs.v1 remains unchanged.",
+  "changes": [
+    "Update paired README deployment/version compatibility notice",
+    "Keep published Rust forge_msgs 2.0.0 / Dora 1.0.1 crate baseline; no unavailable Rust 2.1.0 pin"
+  ],
+  "lock_updates": [],
+  "lock_checks": [],
+  "software_tests": {
+    "repo": "adapter-camera-usb",
+    "rust_tests": "27 passed",
+    "scope": "Cargo tests; fixture tests use a separate exact requirements environment."
+  },
+  "dependency_audit": {
+    "scope": "Python runtime audit not applicable to Rust node; prior RustSec scope unchanged."
+  },
+  "dora_run_records": [
+    {
+      "entry": "usb-camera",
+      "mode": "single",
+      "command": [
+        "${WORKSPACE}/.test-env/bin/dora",
+        "run",
+        "${WORKSPACE}/validation/downstream-msgs210-20261112/review-single/usb-camera/dataflow.yaml",
+        "--stop-after",
+        "4s"
+      ],
+      "exit_code": 1,
+      "elapsed_seconds": 3.951,
+      "passed": false,
+      "expected_negative_confirmed": true,
+      "scope": "Negative platform check: native Linux V4L2 capture is unavailable on macOS; not hardware acceptance.",
+      "repo": "adapter-camera-usb",
+      "source_report": "review-single/usb-camera/report.json",
+      "runtime_errors": [
+        "2026-11-12T08:10:39.395710Z ERROR node_failure: dora_daemon::spawn::prepared: node exited with error: ExitCode(1) node_id=target dataflow_id=01a1cecf-030a-736e-a56e-751a6fd8d5b8",
+        "16:10:39 ERROR  target: daemon exited with code 1 with stderr output:"
+      ],
+      "local_evidence": "Full original Dora log is retained under validation/downstream-msgs210-20261112/review-single/usb-camera/dora.log"
+    },
+    {
+      "entry": "usb-sink-empty",
+      "mode": "single",
+      "command": [
+        "${WORKSPACE}/.test-env/bin/dora",
+        "run",
+        "${WORKSPACE}/validation/downstream-msgs210-20261112/review-single/usb-sink-empty/dataflow.yaml",
+        "--stop-after",
+        "4s"
+      ],
+      "exit_code": 1,
+      "elapsed_seconds": 4.059,
+      "passed": false,
+      "expected_negative_confirmed": true,
+      "scope": "Negative empty-stream check: min_frames=0 must fail, not an accepted image stream.",
+      "repo": "adapter-camera-usb",
+      "source_report": "review-single/usb-sink-empty/report.json",
+      "runtime_errors": [
+        "2026-11-12T08:10:43.491200Z ERROR node_failure: dora_daemon::spawn::prepared: node exited with error: ExitCode(1) node_id=target dataflow_id=01a1cecf-11fa-7a6d-a6aa-3c465f80e9c2",
+        "16:10:43 ERROR  target: daemon exited with code 1 with stderr output:"
+      ],
+      "local_evidence": "Full original Dora log is retained under validation/downstream-msgs210-20261112/review-single/usb-sink-empty/dora.log"
+    },
+    {
+      "entry": "usb-camera",
+      "mode": "chain",
+      "command": [
+        "${WORKSPACE}/.test-env/bin/dora",
+        "run",
+        "${WORKSPACE}/validation/downstream-msgs210-20261112/review-chain/usb-camera/dataflow.yaml",
+        "--stop-after",
+        "4s"
+      ],
+      "includes_gateway": true,
+      "exit_code": 1,
+      "elapsed_seconds": 4.377,
+      "passed": false,
+      "scope": "Blocked platform/SDK prerequisite diagnostic; not successful transport or hardware acceptance.",
+      "repo": "adapter-camera-usb",
+      "source_report": "review-chain/usb-camera/report.json",
+      "runtime_errors": [
+        "2026-11-12T08:10:45.929197Z ERROR node_failure: dora_daemon::spawn::prepared: node exited with error: ExitCode(1) node_id=target dataflow_id=01a1cecf-295f-718e-bb91-7b54a3dc4ffe",
+        "16:10:45 ERROR  target: daemon exited with code 1 with stderr output:"
+      ],
+      "local_evidence": "Full original Dora log is retained under validation/downstream-msgs210-20261112/review-chain/usb-camera/dora.log"
+    },
+    {
+      "command": [
+        "${WORKSPACE}/.test-env/bin/dora",
+        "run",
+        "${WORKSPACE}/validation/downstream-msgs210-20261112/image-chain/dataflow.yaml",
+        "--stop-after",
+        "10s"
+      ],
+      "includes_gateway": true,
+      "passed": true,
+      "viewer_included": true,
+      "rust_sinks_included": true,
+      "gateway_images": {
+        "image/rgb": {
+          "shape": [
+            480,
+            640,
+            3
+          ],
+          "format": "jpeg"
+        },
+        "image/depth": {
+          "shape": [
+            480,
+            640
+          ],
+          "format": "jpeg"
+        }
+      },
+      "exit_code": 0,
+      "checker": {
+        "passed": true,
+        "counts": {
+          "rgb": 284,
+          "depth": 284
+        },
+        "elapsed_seconds": 9.729441124945879,
+        "max_fixture_latency_ms": 24.139,
+        "error": null
+      },
+      "mode": "chain",
+      "entry": "generated-images-viewer-rust-sinks-gateway",
+      "scope": "Generated 640x480 RGB/depth, Viewer and two Rust sinks plus Gateway, 10 seconds. No physical camera, hardware or sustained-run acceptance.",
+      "source_report": "image-chain/chain-report.json",
+      "repo": "adapter-camera-usb",
+      "local_evidence": "Full original Dora log is retained under validation/downstream-msgs210-20261112/image-chain/dora.log"
+    }
+  ],
+  "remaining": "Applicable actual hardware/model, final supported-platform artifacts, sustained run and rollback acceptance remain pending.",
+  "acceptance": "Pending; software checks, fake/dummy backends and negative prerequisite records are scoped evidence only. Every new multi-node graph contains adapter-forge-gateway.",
+  "gitlab_sync": "Not performed; follows completed acceptance.",
+  "log_publication": "Original logs remain in the local validation workspace. This public report publishes reviewed commands, outcomes, assertions and limitations only."
+}
