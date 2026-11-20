@@ -1,5 +1,7 @@
 [English](README.md) | 中文
 
+补丁版 `2.1.3` 包含当前锁定的 Quinn 依赖修复（`quinn-proto 0.11.19`、`quinn-udp 0.5.16`）。 本版仍对应 Forge 2.x / Dora 1.x。相对 1.x，Forge 2.x 属于 **BREAKING CHANGE**；对接节点前须对齐 Forge 库、节点及 Dora 版本。
+
 [English](README.md) | [简体中文](README_zh.md)
 
 # USB Camera

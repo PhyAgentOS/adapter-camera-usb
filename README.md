@@ -1,5 +1,7 @@
 [English](README.md) | [中文](README_zh.md)
 
+Patch `2.1.3` includes the current locked Quinn dependency fixes (`quinn-proto 0.11.19`, `quinn-udp 0.5.16`). This remains a Forge 2.x / Dora 1.x release. Forge 2.x is a **BREAKING CHANGE** from 1.x; align Forge libraries, nodes and Dora before connecting nodes.
+
 [English](README.md) | [简体中文](README_zh.md)
 
 # USB camera
