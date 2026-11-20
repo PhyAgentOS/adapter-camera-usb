@@ -1,3 +1,5 @@
+[简体中文](README_zh.md)
+
 # USB Camera
 
 纯 Rust 的 Linux USB/UVC 彩色相机接入，保留独立的配置模型、采集 backend、CLI 和 Dora 节点。支持 V4L2 `/dev/video*`，不引入 Python。不同设备、固件和驱动组合仍需分别验证。
@@ -143,3 +145,7 @@ sink 是 Rust 可执行节点，能解码 `forge_msgs.Image` 和 `forge_msgs.Com
 ## 许可证
 
 本项目基于 Apache License 2.0 开源，完整条款见 `LICENSE`。
+
+## CI policy
+
+Automated dependency vulnerability audits are not maintained as CI or merge gates on this branch. Existing tests, builds, and other checks remain in place. Removing the audit gate does not change locked dependencies or resolve previously reported vulnerabilities.

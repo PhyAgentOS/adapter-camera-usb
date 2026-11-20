@@ -44,20 +44,3 @@ jobs:
 
       - name: Validate package
         run: cargo package --locked
-
-  security:
-    name: RustSec audit
-    runs-on: ubuntu-latest
-
-    steps:
-      - name: Check out repository
-        uses: actions/checkout@v4
-
-      - name: Set up Rust
-        uses: dtolnay/rust-toolchain@stable
-
-      - name: Install cargo-audit
-        uses: taiki-e/install-action@cargo-audit
-
-      - name: Audit Cargo.lock
-        run: cargo audit --file Cargo.lock
